@@ -3,6 +3,7 @@ import os
 import sqlite3
 import json
 from datetime import datetime, date
+import uuid
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
@@ -53,6 +54,17 @@ def init_db():
         c.execute("ALTER TABLE task ADD COLUMN date_prev TEXT DEFAULT ''")
     if "date_reelle" not in existing:
         c.execute("ALTER TABLE task ADD COLUMN date_reelle TEXT DEFAULT ''")
+    
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS document (
+            id          TEXT PRIMARY KEY,
+            name        TEXT NOT NULL,
+            status      TEXT NOT NULL DEFAULT 'En attente',
+            color       TEXT NOT NULL DEFAULT '#3498db',
+            done        INTEGER NOT NULL DEFAULT 0,
+            created_date TEXT NOT NULL
+        )
+    """)
     conn.commit()
     conn.close()
 
@@ -644,6 +656,107 @@ def export_excel():
 @app.route("/api/processing-limits", methods=["GET"])
 def get_processing_limits():
     return jsonify(PROCESSING_LIMITS)
+
+
+# ── DOCUMENTS MANAGEMENT ──────────────────────────────────────────────────────
+
+@app.route("/api/documents", methods=["GET"])
+def get_documents():
+    conn = get_db()
+    c = conn.cursor()
+    docs = c.execute("SELECT * FROM document ORDER BY created_date DESC").fetchall()
+    conn.close()
+    return jsonify([
+        {
+            "id": doc[0],
+            "name": doc[1],
+            "status": doc[2],
+            "color": doc[3],
+            "done": doc[4],
+            "created_date": doc[5],
+        }
+        for doc in docs
+    ])
+
+
+@app.route("/api/documents", methods=["POST"])
+def create_document():
+    data = request.get_json()
+    doc_id = str(uuid.uuid4())
+    name = data.get("name", "").strip()
+    status = data.get("status", "En attente").strip()
+    color = data.get("color", "#3498db").strip()
+    
+    if not name:
+        return jsonify({"error": "Document name is required"}), 400
+    
+    conn = get_db()
+    c = conn.cursor()
+    c.execute(
+        "INSERT INTO document (id, name, status, color, done, created_date) VALUES (?, ?, ?, ?, 0, ?)",
+        (doc_id, name, status, color, datetime.now().isoformat())
+    )
+    conn.commit()
+    conn.close()
+    
+    return jsonify({
+        "id": doc_id,
+        "name": name,
+        "status": status,
+        "color": color,
+        "done": 0,
+        "created_date": datetime.now().isoformat(),
+    }), 201
+
+
+@app.route("/api/documents/<doc_id>", methods=["PUT"])
+def update_document(doc_id):
+    data = request.get_json()
+    conn = get_db()
+    c = conn.cursor()
+    
+    doc = c.execute("SELECT * FROM document WHERE id = ?", (doc_id,)).fetchone()
+    if not doc:
+        conn.close()
+        return jsonify({"error": "Document not found"}), 404
+    
+    name = data.get("name", doc[1]).strip()
+    status = data.get("status", doc[2]).strip()
+    color = data.get("color", doc[3]).strip()
+    done = data.get("done", doc[4])
+    
+    c.execute(
+        "UPDATE document SET name = ?, status = ?, color = ?, done = ? WHERE id = ?",
+        (name, status, color, done, doc_id)
+    )
+    conn.commit()
+    conn.close()
+    
+    return jsonify({
+        "id": doc_id,
+        "name": name,
+        "status": status,
+        "color": color,
+        "done": done,
+        "created_date": doc[5],
+    })
+
+
+@app.route("/api/documents/<doc_id>", methods=["DELETE"])
+def delete_document(doc_id):
+    conn = get_db()
+    c = conn.cursor()
+    
+    doc = c.execute("SELECT * FROM document WHERE id = ?", (doc_id,)).fetchone()
+    if not doc:
+        conn.close()
+        return jsonify({"error": "Document not found"}), 404
+    
+    c.execute("DELETE FROM document WHERE id = ?", (doc_id,))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({"success": True})
 
 
 # ── IMPORT EXCEL ──────────────────────────────────────────────────────────────

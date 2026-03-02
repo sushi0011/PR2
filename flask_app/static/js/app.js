@@ -9,6 +9,7 @@ let allPRs       = [];
 let selectedPRId = null;
 let donutChart   = null;
 let processingLimits = {};
+let allDocuments  = [];
 
 /* ── INIT ───────────────────────────────────────────────────────────────────── */
 document.addEventListener("DOMContentLoaded", () => {
@@ -16,6 +17,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setInterval(clock, 1000);
   headerDate();
   loadProcessingLimits();
+  loadDocuments();
   loadPRList();
   bindForm();
   bindSearch();
@@ -23,6 +25,7 @@ document.addEventListener("DOMContentLoaded", () => {
   bindStatusDropdown();
   bindModalClose();
   bindHelpButton();
+  bindDocumentsButton();
 });
 
 /* ── CLOCK ──────────────────────────────────────────────────────────────────── */
@@ -86,6 +89,138 @@ function bindHelpButton() {
   if (helpBtn) {
     helpBtn.addEventListener("click", showProcessingLimitsHelp);
   }
+}
+
+/* ── DOCUMENTS MANAGEMENT ───────────────────────────────────────────────────── */
+function bindDocumentsButton() {
+  const docsBtn = document.getElementById("btnDocuments");
+  if (docsBtn) {
+    docsBtn.addEventListener("click", openDocumentsModal);
+  }
+}
+
+async function loadDocuments() {
+  try {
+    allDocuments = await api("/api/documents");
+  } catch (err) {
+    console.error("[v0] Failed to load documents:", err);
+    allDocuments = [];
+  }
+}
+
+function openDocumentsModal() {
+  const modal = document.getElementById("documentsModal");
+  if (modal) {
+    modal.style.display = "flex";
+    renderDocumentsList();
+  }
+}
+
+function renderDocumentsList() {
+  const container = document.getElementById("documentsList");
+  if (!container) return;
+  
+  const pendingDocs = allDocuments.filter(doc => !doc.done);
+  
+  if (pendingDocs.length === 0) {
+    container.innerHTML = '<div style="text-align:center;color:#999;padding:20px"><span class="glyphicon glyphicon-inbox"></span><p>Aucun document en attente</p></div>';
+    return;
+  }
+  
+  container.innerHTML = pendingDocs.map(doc => `
+    <div class="document-item">
+      <input type="checkbox" class="document-checkbox" 
+             ${doc.done ? 'checked' : ''} 
+             onchange="toggleDocument('${doc.id}', this.checked)">
+      <div class="document-color-tag" style="background-color:${doc.color}"></div>
+      <div class="document-info">
+        <div class="document-name">${escapeHtml(doc.name)}</div>
+        <span class="document-status" style="border-color:${doc.color};color:${doc.color}">${escapeHtml(doc.status)}</span>
+      </div>
+      <div class="document-actions">
+        <button class="btn-doc-delete" onclick="deleteDocument('${doc.id}')">
+          <span class="glyphicon glyphicon-trash"></span> Supprimer
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function addDocument() {
+  const name = document.getElementById("docName").value.trim();
+  const status = document.getElementById("docStatus").value.trim();
+  const color = document.getElementById("docColor").value;
+  
+  if (!name) {
+    showToast("Veuillez entrer un nom de document", "error");
+    return;
+  }
+  
+  const result = await api("/api/documents", "POST", {
+    name: name,
+    status: status || "En attente",
+    color: color
+  });
+  
+  if (result.error) {
+    showToast(result.error, "error");
+    return;
+  }
+  
+  allDocuments.push(result);
+  document.getElementById("docName").value = "";
+  document.getElementById("docStatus").value = "";
+  document.getElementById("docColor").value = "#3498db";
+  
+  renderDocumentsList();
+  showToast("Document ajouté avec succès", "success");
+}
+
+async function toggleDocument(docId, isDone) {
+  const doc = allDocuments.find(d => d.id === docId);
+  if (!doc) return;
+  
+  const result = await api(`/api/documents/${docId}`, "PUT", {
+    ...doc,
+    done: isDone ? 1 : 0
+  });
+  
+  if (result.error) {
+    showToast("Erreur lors de la mise à jour", "error");
+    return;
+  }
+  
+  doc.done = result.done;
+  renderDocumentsList();
+}
+
+async function deleteDocument(docId) {
+  Swal.fire({
+    title: 'Supprimer le document ?',
+    text: 'Cette action est irréversible.',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'Supprimer',
+    cancelButtonText: 'Annuler',
+    confirmButtonColor: '#C0392B'
+  }).then(async (result) => {
+    if (!result.isConfirmed) return;
+    
+    const apiResult = await api(`/api/documents/${docId}`, "DELETE");
+    if (apiResult.error) {
+      showToast("Erreur lors de la suppression", "error");
+      return;
+    }
+    
+    allDocuments = allDocuments.filter(d => d.id !== docId);
+    renderDocumentsList();
+    showToast("Document supprimé", "success");
+  });
+}
+
+function escapeHtml(text) {
+  const map = {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'};
+  return text.replace(/[&<>"']/g, m => map[m]);
 }
 
 /* ── LOAD ALL PR ────────────────────────────────────────────────────────────── */
@@ -779,6 +914,20 @@ function bindImportExport() {
 }
 
 /* ── MODAL ──────────────────────────────────────────────────────────────────── */
+function closeModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (modal) {
+    modal.style.display = "none";
+  }
+}
+
+// Close modal when clicking outside of modal-content
+document.addEventListener("click", (e) => {
+  if (e.target.classList.contains("modal")) {
+    e.target.style.display = "none";
+  }
+});
+
 function bindModalClose() {
   document.getElementById("closeExportModal").addEventListener("click", () => {
     document.getElementById("exportModal").classList.remove("open");

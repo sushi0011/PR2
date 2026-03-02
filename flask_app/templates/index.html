@@ -162,4 +162,52 @@
   <div id="checklistContainer" class="checklist-container"></div>
 </div>
 
+<!-- ═══════════════════ DOCUMENTS MODAL ═════════════════════════════════ -->
+<div id="documentsModal" class="modal" style="display:none">
+  <div class="modal-content" style="max-width:600px">
+    <div class="modal-header">
+      <h3 class="modal-title">
+        <span class="glyphicon glyphicon-folder-open"></span>
+        Gestion des Documents
+      </h3>
+      <button class="modal-close" onclick="closeModal('documentsModal')">&times;</button>
+    </div>
+    
+    <div class="modal-body">
+      <!-- Add Document Form -->
+      <div class="document-form">
+        <h4 style="margin-top:0;color:#2C3E50">Ajouter un Document</h4>
+        
+        <div style="margin-bottom:12px">
+          <label class="form-label">Nom du document</label>
+          <input type="text" id="docName" class="form-input" placeholder="Ex: Certificat d'assurance, Bon de livraison, etc.">
+        </div>
+        
+        <div style="display:flex;gap:12px;margin-bottom:12px">
+          <div style="flex:1">
+            <label class="form-label">Statut</label>
+            <input type="text" id="docStatus" class="form-input" placeholder="Ex: En attente, Reçu, etc.">
+          </div>
+          <div style="flex:0 0 80px">
+            <label class="form-label">Couleur</label>
+            <input type="color" id="docColor" class="form-color-input" value="#3498db">
+          </div>
+        </div>
+        
+        <button class="btn-primary" onclick="addDocument()" style="width:100%;padding:10px">
+          <span class="glyphicon glyphicon-plus"></span> Ajouter
+        </button>
+      </div>
+      
+      <hr style="margin:20px 0;border:none;border-top:1px solid #E0E0E0">
+      
+      <!-- Documents List -->
+      <div style="max-height:400px;overflow-y:auto">
+        <h4 style="margin-top:0;color:#2C3E50">Documents en Attente</h4>
+        <div id="documentsList" class="documents-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
