@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}Tableau de Bord — Suivi PR{% endblock %}
+
+{% block content %}
+<!-- ═══════════════════ DASHBOARD VIEW ═══════════════════════════════════ -->
+<div id="dashboardView" class="view active-view">
+
+  <!-- Page header -->
+  <div class="page-header-custom">
+    <div>
+      <h2 class="page-title">
+        <span class="glyphicon glyphicon-dashboard"></span>
+        Tableau de Bord
+      </h2>
+      <p class="page-subtitle">Vue d'ensemble des demandes d'achat</p>
+    </div>
+    <div class="header-date" id="headerDate"></div>
+  </div>
+
+  <!-- ── ALERT BANNER ───────────────────────────────────────────────────── -->
+  <div class="alert-banner" id="alertBanner" style="display:none">
+    <span class="alert-banner-icon">
+      <span class="glyphicon glyphicon-bell"></span>
+    </span>
+    <div id="alertBannerMsg" class="alert-banner-items"></div>
+    <a href="#alertsPanel" class="alert-banner-link">
+      Voir le détail <span class="glyphicon glyphicon-chevron-right"></span>
+    </a>
+  </div>
+
+  <!-- ── KPI CARDS ────────────────────────────────────────────────────────── -->
+  <div class="kpi-grid">
+    <div class="kpi-card kpi-total">
+      <div class="kpi-icon"><span class="glyphicon glyphicon-folder-open"></span></div>
+      <div class="kpi-body">
+        <div class="kpi-value" data-target="{{ stats.total }}" id="kpiTotal">0</div>
+        <div class="kpi-label">Total PR</div>
+      </div>
+    </div>
+    <div class="kpi-card kpi-progress">
+      <div class="kpi-icon"><span class="glyphicon glyphicon-stats"></span></div>
+      <div class="kpi-body">
+        <div class="kpi-value" data-target="{{ stats.avg_prog }}" id="kpiAvg">0</div>
+        <div class="kpi-label">Progression Moy. %</div>
+      </div>
+    </div>
+    <div class="kpi-card kpi-cloturee">
+      <div class="kpi-icon"><span class="glyphicon glyphicon-ok-circle"></span></div>
+      <div class="kpi-body">
+        <div class="kpi-value" data-target="{{ stats.cloturee }}" id="kpiCloturee">0</div>
+        <div class="kpi-label">Clôturées</div>
+      </div>
+    </div>
+    <div class="kpi-card kpi-encours">
+      <div class="kpi-icon"><span class="glyphicon glyphicon-refresh"></span></div>
+      <div class="kpi-body">
+        <div class="kpi-value" data-target="{{ stats.en_cours }}" id="kpiEnCours">0</div>
+        <div class="kpi-label">En Cours</div>
+      </div>
+    </div>
+    <div class="kpi-card kpi-blockee">
+      <div class="kpi-icon"><span class="glyphicon glyphicon-ban-circle"></span></div>
+      <div class="kpi-body">
+        <div class="kpi-value" data-target="{{ stats.blockee }}" id="kpiBlockee">0</div>
+        <div class="kpi-label">Bloquées</div>
+      </div>
+    </div>
+    <div class="kpi-card kpi-annulee">
+      <div class="kpi-icon"><span class="glyphicon glyphicon-remove-circle"></span></div>
+      <div class="kpi-body">
+        <div class="kpi-value" data-target="{{ stats.annulee }}" id="kpiAnnulee">0</div>
+        <div class="kpi-label">Annulées</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CHARTS ROW ────────────────────────────────────────────────────────── -->
+  <div class="charts-row">
+    <!-- Donut -->
+    <div class="chart-card donut-card">
+      <div class="chart-card-header">
+        <span class="glyphicon glyphicon-record"></span>
+        Répartition par Statut
+      </div>
+      <div class="donut-wrapper">
+        <canvas id="donutChart"></canvas>
+        <div class="donut-center">
+          <div class="donut-total" id="donutTotal">{{ stats.total }}</div>
+          <div class="donut-label">Total</div>
+        </div>
+      </div>
+      <div class="donut-legend" id="donutLegend"></div>
+    </div>
+
+    <!-- Status bars -->
+    <div class="chart-card bars-card">
+      <div class="chart-card-header">
+        <span class="glyphicon glyphicon-equalizer"></span>
+        Volume par Statut
+      </div>
+      <div class="status-bars" id="statusBars"></div>
+    </div>
+
+    <!-- Recent activity -->
+    <div class="chart-card activity-card">
+      <div class="chart-card-header">
+        <span class="glyphicon glyphicon-time"></span>
+        Activité Récente
+      </div>
+      <div id="recentActivity" class="activity-list">
+        <div class="no-activity">
+          <span class="glyphicon glyphicon-inbox"></span>
+          <p>Aucune PR pour le moment</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ALERTS PANEL ───────────────────────────────────────────────────── -->
+  <div class="alerts-panel" id="alertsPanel" style="display:none">
+    <div class="alerts-panel-header">
+      <span class="glyphicon glyphicon-alert"></span>
+      Alertes Délais — Étapes en Retard ou à Risque
+    </div>
+    <div id="alertsList" class="alerts-list"></div>
+  </div>
+
+</div><!-- /#dashboardView -->
+
+<!-- ═══════════════════ CHECKLIST VIEW ══════════════════════════════════ -->
+<div id="checklistView" class="view">
+  <div class="page-header-custom">
+    <div>
+      <button class="btn-back" id="btnBackToDash">
+        <span class="glyphicon glyphicon-chevron-left"></span> Retour
+      </button>
+      <h2 class="page-title" id="checklistTitle">Checklist</h2>
+      <p class="page-subtitle" id="checklistSubtitle"></p>
+    </div>
+    <div class="checklist-header-right">
+      <div class="progress-ring-wrapper">
+        <svg class="progress-ring" viewBox="0 0 64 64">
+          <circle class="ring-bg" cx="32" cy="32" r="28" />
+          <circle class="ring-fill" id="ringFill" cx="32" cy="32" r="28"
+                  stroke-dasharray="175.93" stroke-dashoffset="175.93"/>
+        </svg>
+        <div class="ring-label" id="ringLabel">0%</div>
+      </div>
+      <div class="checklist-meta" id="checklistMeta"></div>
+    </div>
+  </div>
+  <div class="progress-bar-wrapper">
+    <div class="progress-bar-track">
+      <div class="progress-bar-fill" id="progressBarFill" style="width:0%"></div>
+    </div>
+    <span class="progress-pct" id="progressPct">0%</span>
+  </div>
+  <div id="checklistContainer" class="checklist-container"></div>
+</div>
+
+{% endblock %}

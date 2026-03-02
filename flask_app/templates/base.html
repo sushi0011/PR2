@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Suivi des Demandes d'Achat{% endblock %}</title>
+
+  <!-- Bootstrap 3 (includes Glyphicons) -->
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css" />
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet" />
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- SweetAlert2 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <!-- SheetJS -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+
+  <!-- App CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════════════ TOP NAVBAR -->
+  <nav class="navbar-top">
+    <div class="navbar-brand-area">
+      <span class="glyphicon glyphicon-shopping-cart brand-icon"></span>
+      <div>
+        <span class="brand-title">Suivi PR</span>
+        <span class="brand-sub">Purchase Request Tracker</span>
+      </div>
+    </div>
+    <div class="navbar-actions">
+      <button class="btn-action" id="btnImport" title="Importer Excel">
+        <span class="glyphicon glyphicon-upload"></span>
+        <span class="btn-label">Importer</span>
+      </button>
+      <button class="btn-action btn-action-outline" id="btnExportModal" title="Exporter Excel">
+        <span class="glyphicon glyphicon-download-alt"></span>
+        <span class="btn-label">Exporter</span>
+      </button>
+      <div class="navbar-clock" id="clockDisplay"></div>
+    </div>
+  </nav>
+
+  <!-- ═══════════════════════════════════════════════════════ LAYOUT -->
+  <div class="app-layout">
+
+    <!-- ── SIDEBAR ───────────────────────────────────────────────── -->
+    <aside class="sidebar">
+      <!-- New PR Form -->
+      <div class="sidebar-section">
+        <div class="section-header">
+          <span class="glyphicon glyphicon-plus-sign"></span>
+          <span id="formTitle">Nouvelle Demande</span>
+        </div>
+        <form id="prForm" class="pr-form">
+          <input type="hidden" id="editingId" value="" />
+          <div class="form-group-custom">
+            <label><span class="glyphicon glyphicon-barcode"></span> N° PR</label>
+            <input type="number" id="prNumber" placeholder="ex: 2025001" class="input-custom" required />
+          </div>
+          <div class="form-group-custom">
+            <label><span class="glyphicon glyphicon-file"></span> Sujet / Titre</label>
+            <input type="text" id="prTitle" placeholder="Objet de la demande" class="input-custom" required />
+          </div>
+          <div class="form-group-custom">
+            <label><span class="glyphicon glyphicon-calendar"></span> Date de la demande</label>
+            <input type="date" id="prDate" class="input-custom" required />
+          </div>
+          <div class="form-group-custom">
+            <label><span class="glyphicon glyphicon-th-list"></span> Type de procédure</label>
+            <div class="category-buttons">
+              <button type="button" class="cat-btn" data-cat="ED">
+                <span class="cat-code">ED</span>
+                <span class="cat-name">Entente Directe</span>
+              </button>
+              <button type="button" class="cat-btn" data-cat="CR">
+                <span class="cat-code">CR</span>
+                <span class="cat-name">Consultation Restreinte</span>
+              </button>
+              <button type="button" class="cat-btn" data-cat="COU">
+                <span class="cat-code">COU</span>
+                <span class="cat-name">Consultation Ouverte</span>
+              </button>
+            </div>
+            <input type="hidden" id="prCategory" value="" />
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn-submit">
+              <span class="glyphicon glyphicon-floppy-disk"></span>
+              <span id="submitLabel">Créer la PR</span>
+            </button>
+            <button type="button" id="btnCancel" class="btn-cancel" style="display:none">
+              <span class="glyphicon glyphicon-remove"></span> Annuler
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Search + List -->
+      <div class="sidebar-section sidebar-list-section">
+        <div class="section-header">
+          <span class="glyphicon glyphicon-list-alt"></span>
+          <span>Demandes d'Achat</span>
+          <span class="pr-count-badge" id="prCountBadge">0</span>
+        </div>
+        <div class="search-box">
+          <span class="glyphicon glyphicon-search search-icon"></span>
+          <input type="text" id="searchInput" placeholder="Rechercher..." class="search-input" />
+        </div>
+        <div id="prList" class="pr-list"></div>
+      </div>
+    </aside>
+
+    <!-- ── MAIN CONTENT ───────────────────────────────────────────── -->
+    <main class="content-area">
+      {% block content %}{% endblock %}
+    </main>
+
+  </div><!-- /.app-layout -->
+
+  <!-- ═══════════════════════════════════════════════════════ IMPORT INPUT -->
+  <input type="file" id="importFileInput" accept=".xlsx" style="display:none" />
+
+  <!-- ═══════════════════════════════════════════════════════ EXPORT MODAL -->
+  <div class="modal-overlay" id="exportModal">
+    <div class="modal-box">
+      <div class="modal-header-custom">
+        <span class="glyphicon glyphicon-export"></span>
+        Exporter vers Excel
+        <button class="modal-close" id="closeExportModal">&times;</button>
+      </div>
+      <div class="modal-body-custom">
+        <p class="modal-hint">Filtrer par période (optionnel)</p>
+        <div class="modal-row">
+          <div class="form-group-custom">
+            <label><span class="glyphicon glyphicon-calendar"></span> Du</label>
+            <input type="date" id="exportFrom" class="input-custom" />
+          </div>
+          <div class="form-group-custom">
+            <label><span class="glyphicon glyphicon-calendar"></span> Au</label>
+            <input type="date" id="exportTo" class="input-custom" />
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer-custom">
+        <button class="btn-submit" id="btnDoExport">
+          <span class="glyphicon glyphicon-download-alt"></span> Télécharger
+        </button>
+        <button class="btn-cancel" id="cancelExport">
+          <span class="glyphicon glyphicon-remove"></span> Annuler
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ STATUS DROPDOWN -->
+  <div id="statusDropdown" class="status-dropdown" style="display:none">
+    <div class="status-option" data-status="en-cours">
+      <span class="status-dot dot-encours"></span> En Cours
+    </div>
+    <div class="status-option" data-status="cloturee">
+      <span class="status-dot dot-cloturee"></span> Clôturée
+    </div>
+    <div class="status-option" data-status="blockee">
+      <span class="status-dot dot-blockee"></span> Bloquée
+    </div>
+    <div class="status-option" data-status="annulee">
+      <span class="status-dot dot-annulee"></span> Annulée
+    </div>
+  </div>
+
+  <!-- jQuery + Bootstrap JS -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+  <!-- App JS -->
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
