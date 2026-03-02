@@ -579,9 +579,14 @@ function refreshTaskDelayUI(prId, tid, res) {
       allPRs.reduce((a, p) => a + (p.warning_steps || 0), 0)
     );
     loadAndRenderAlerts();
-    // Refresh processing time display
+    // Refresh processing time display if this PR is currently selected
     if (selectedPRId === prId) {
-      loadPRList(document.getElementById("searchInput").value);
+      loadPRList("").then(() => {
+        const updatedPR = allPRs.find(p => p.id === prId);
+        if (updatedPR) {
+          showProcessingTimeInfo(updatedPR);
+        }
+      });
     }
   }
 }
