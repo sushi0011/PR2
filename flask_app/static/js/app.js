@@ -530,7 +530,7 @@ function renderRecentActivity() {
     container.innerHTML = `<div class="no-activity"><span class="glyphicon glyphicon-inbox"></span><p>Aucune PR pour le moment</p></div>`;
     return;
   }
-  const icons = { "ED": "#E74C3C", "CR": "#3498DB", "COU": "#2ECC71" };
+  const icons = { "ED": "#E74C3C", "CR": "#3498DB", "COU": "#2ECC71", "Hybride": "#9B59B6" };
   container.innerHTML = recent.map(pr => `
     <div class="activity-item" onclick="selectPR('${pr.id}')">
       <div class="activity-icon" style="background:${icons[pr.category] || "#ccc"}22;color:${icons[pr.category] || "#999"}">

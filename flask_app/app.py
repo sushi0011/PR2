@@ -301,66 +301,39 @@ def count_late_steps_for_pr(tasks: dict) -> dict:
 
 def calculate_kpi_delay(pr_data, tasks: dict) -> dict:
     """
-    Calculate processing delay in weeks based on PR category.
+    Calculate processing delay in weeks for all PR types.
     
-    Logic:
-    - CR: Time from step 3 (Étude technique) to status = "cloturé"
-    - ED: Time from step 7 (Signature de l'acte) to status = "cloturé"
-    - COU: Time from step 1 (first step) to status = "cloturé"
-    - Hybride: Time from step 1 (first step) to status = "cloturé"
+    Logic: Time from FIRST completed step to LAST completed step (regardless of category)
+    When status = "cloturé", the end date is the last step completion
+    When status != "cloturé", calculate from first step to today
     
     Returns: { "delay_days": int, "delay_weeks": float, "start_date": str, "end_date": str }
     """
-    category = pr_data.get("category", "")
     status = pr_data.get("status", "")
-    created_date = pr_data.get("created_date", "")
     
-    if not tasks or not created_date:
+    if not tasks:
         return {"delay_days": 0, "delay_weeks": 0, "start_date": "", "end_date": "", "status": status}
     
     try:
-        # Determine starting step based on category
-        start_step_idx = 0
-        if category == "CR":
-            start_step_idx = 3  # Step 3 (Étude technique)
-        elif category == "ED":
-            start_step_idx = 7  # Step 7 (Signature)
-        elif category in ["COU", "Hybride"]:
-            start_step_idx = 1  # Step 1 (first step)
-        
-        # Find start date from the appropriate step
+        # Find first completed step date
         start_date = None
-        if str(start_step_idx) in tasks:
-            task = tasks[str(start_step_idx)]
+        for task_id in sorted(tasks.keys(), key=lambda x: int(x)):
+            task = tasks[task_id]
             if task.get("date_reelle"):
                 start_date = date.fromisoformat(task["date_reelle"])
+                break
         
-        # If start date not found, try first completed step
-        if not start_date:
-            for task_id in sorted(tasks.keys(), key=lambda x: int(x)):
-                task = tasks[task_id]
-                if task.get("date_reelle"):
-                    start_date = date.fromisoformat(task["date_reelle"])
-                    break
+        # Find last completed step date
+        end_date = None
+        for task_id in sorted(tasks.keys(), key=lambda x: int(x), reverse=True):
+            task = tasks[task_id]
+            if task.get("date_reelle"):
+                end_date = date.fromisoformat(task["date_reelle"])
+                break
         
-        if not start_date:
+        # If no completed steps, return 0
+        if not start_date or not end_date:
             return {"delay_days": 0, "delay_weeks": 0, "start_date": "", "end_date": "", "status": status}
-        
-        # End date is when status becomes "cloturé"
-        if status == "cloturee":
-            # Find the last completed step date
-            end_date = None
-            for task_id in sorted(tasks.keys(), key=lambda x: int(x), reverse=True):
-                task = tasks[task_id]
-                if task.get("date_reelle"):
-                    end_date = date.fromisoformat(task["date_reelle"])
-                    break
-            
-            if not end_date:
-                end_date = start_date
-        else:
-            # For non-closed PRs, calculate from start to today
-            end_date = date.today()
         
         delay_days = (end_date - start_date).days
         delay_weeks = round(delay_days / 7, 1)
