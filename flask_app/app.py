@@ -1,4 +1,4 @@
-﻿from flask import Flask, render_template, request, jsonify, send_file
+from flask import Flask, render_template, request, jsonify, send_file
 import os
 import sqlite3
 import json
@@ -55,6 +55,37 @@ def init_db():
         c.execute("ALTER TABLE task ADD COLUMN date_reelle TEXT DEFAULT ''")
     conn.commit()
     conn.close()
+
+# ─── PROCESSING TIME LIMITS (in weeks) ────────────────────────────────────────
+PROCESSING_LIMITS = {
+    "ED": {
+        "max_weeks": 10,
+        "steps": {
+            "Délai de dépot des offres": 3,
+            "Etude technique": 2,
+            "Négociation": 2,
+            "Contractualisation": 3,
+        }
+    },
+    "CR": {
+        "max_weeks": 11,
+        "steps": {
+            "Délai de dépot des offres": 4,
+            "Etude technique": 2,
+            "Négociation": 2,
+            "Contractualisation": 3,
+        }
+    },
+    "COU": {
+        "max_weeks": 14,
+        "steps": {
+            "Délai de dépot des offres": 5,
+            "Etude technique": 3,
+            "Négociation": 3,
+            "Contractualisation": 3,
+        }
+    },
+}
 
 # ─── STEPS DEFINITIONS ────────────────────────────────────────────────────────
 STEPS_DATA = {
@@ -182,6 +213,41 @@ def delay_status(date_prev: str, date_reelle: str) -> str:
     except ValueError:
         return ""
 
+def calculate_processing_time(tasks: dict, created_date: str) -> dict:
+    """
+    Calculate total processing time in days from created_date to last completed step.
+    Returns: { "days": int, "weeks": float, "exceeded": bool, "max_weeks": int }
+    """
+    if not tasks or not created_date:
+        return {"days": 0, "weeks": 0, "exceeded": False, "max_weeks": 0}
+    
+    # Find last task with date_reelle
+    last_completion = None
+    for task in tasks.values():
+        if task.get("date_reelle"):
+            try:
+                dr = date.fromisoformat(task["date_reelle"])
+                if not last_completion or dr > last_completion:
+                    last_completion = dr
+            except ValueError:
+                continue
+    
+    if not last_completion:
+        return {"days": 0, "weeks": 0, "exceeded": False, "max_weeks": 0}
+    
+    try:
+        start_date = date.fromisoformat(created_date)
+        total_days = (last_completion - start_date).days
+        total_weeks = round(total_days / 7, 1)
+        return {
+            "days": total_days,
+            "weeks": total_weeks,
+            "exceeded": False,  # Will be set by API based on category
+            "max_weeks": 0
+        }
+    except ValueError:
+        return {"days": 0, "weeks": 0, "exceeded": False, "max_weeks": 0}
+
 def row_to_pr(row) -> dict:
     return {
         "id":          row["id"],
@@ -249,7 +315,7 @@ def index():
     return render_template("index.html", stats=stats)
 
 
-# ── PR CRUD ───────────────────────────────────────────────────────────────────
+# ── PR CRUD ──────────────��────────────────────────────────────────────────────
 
 @app.route("/api/pr", methods=["GET"])
 def get_all_pr():
@@ -270,6 +336,15 @@ def get_all_pr():
         counts = count_late_steps_for_pr(tasks)
         pr["late_steps"]    = counts["late"]
         pr["warning_steps"] = counts["warning"]
+        
+        # Add processing time info
+        proc_time = calculate_processing_time(tasks, r["created_date"])
+        pr["processing_days"]  = proc_time["days"]
+        pr["processing_weeks"] = proc_time["weeks"]
+        max_weeks = PROCESSING_LIMITS.get(r["category"], {}).get("max_weeks", 0)
+        pr["max_weeks"] = max_weeks
+        pr["exceeded"] = proc_time["weeks"] > max_weeks if max_weeks > 0 else False
+        
         result.append(pr)
     conn.close()
     return jsonify(result)
@@ -563,6 +638,12 @@ def export_excel():
     return send_file(output,
                      mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                      as_attachment=True, download_name=filename)
+
+
+# ── PROCESSING TIME LIMITS (API) ──────────────────────────────────────────────
+@app.route("/api/processing-limits", methods=["GET"])
+def get_processing_limits():
+    return jsonify(PROCESSING_LIMITS)
 
 
 # ── IMPORT EXCEL ──────────────────────────────────────────────────────────────

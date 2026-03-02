@@ -8,18 +8,21 @@
 let allPRs       = [];
 let selectedPRId = null;
 let donutChart   = null;
+let processingLimits = {};
 
 /* ── INIT ───────────────────────────────────────────────────────────────────── */
 document.addEventListener("DOMContentLoaded", () => {
   clock();
   setInterval(clock, 1000);
   headerDate();
+  loadProcessingLimits();
   loadPRList();
   bindForm();
   bindSearch();
   bindImportExport();
   bindStatusDropdown();
   bindModalClose();
+  bindHelpButton();
 });
 
 /* ── CLOCK ──────────────────────────────────────────────────────────────────── */
@@ -42,6 +45,47 @@ async function api(path, method = "GET", body = null) {
   if (body) opts.body = JSON.stringify(body);
   const res = await fetch(path, opts);
   return res.json();
+}
+
+async function loadProcessingLimits() {
+  processingLimits = await api("/api/processing-limits");
+}
+
+function showProcessingLimitsHelp() {
+  const html = Object.entries(processingLimits).map(([cat, data]) => `
+    <div class="help-category" style="margin-bottom:20px;padding:12px;border:1px solid #E0E0E0;border-radius:6px">
+      <h4 style="margin:0 0 10px 0;color:#2C3E50"><span class="glyphicon glyphicon-file"></span> ${cat}</h4>
+      <div style="font-weight:bold;margin-bottom:8px;color:#C0392B">Délai max de traitement : ${data.max_weeks} semaines</div>
+      <div style="font-size:13px;margin-bottom:10px">
+        <span style="color:#666">Répartition par étape :</span>
+      </div>
+      <ul style="margin:0;padding-left:20px;font-size:13px">
+        ${Object.entries(data.steps).map(([step, weeks]) => `
+          <li style="margin:4px 0"><strong>${step}</strong>: ${weeks} semaine${weeks > 1 ? 's' : ''}</li>
+        `).join('')}
+      </ul>
+    </div>
+  `).join('');
+  
+  Swal.fire({
+    title: 'Guide des Délais de Traitement',
+    html: html,
+    icon: 'info',
+    width: 500,
+    confirmButtonText: 'Fermer',
+    didOpen: () => {
+      const popup = Swal.getPopup();
+      popup.style.maxHeight = '70vh';
+      popup.style.overflowY = 'auto';
+    }
+  });
+}
+
+function bindHelpButton() {
+  const helpBtn = document.getElementById("btnProcessingHelp");
+  if (helpBtn) {
+    helpBtn.addEventListener("click", showProcessingLimitsHelp);
+  }
 }
 
 /* ── LOAD ALL PR ────────────────────────────────────────────────────────────── */
@@ -78,6 +122,14 @@ function renderPRList() {
         <span class="glyphicon glyphicon-time"></span> ${pr.warning_steps} risque
       </span>`;
     }
+    
+    let exceedIndicator = "";
+    if (pr.exceeded) {
+      exceedIndicator = `<span class="pr-delay-badge badge-exceed" title="Délai max dépassé (${pr.processing_weeks} / ${pr.max_weeks} semaines)">
+        <span class="glyphicon glyphicon-alert"></span> Dépassé
+      </span>`;
+    }
+    
     return `
     <div class="pr-item ${pr.id === selectedPRId ? "selected" : ""}" data-id="${pr.id}" onclick="selectPR('${pr.id}')">
       <div class="pr-item-top">
@@ -111,7 +163,10 @@ function renderPRList() {
         </span>
         <small style="color:var(--grey-400);font-size:10px">${pr.completed_tasks}/${pr.total_tasks} étapes</small>
       </div>
-      ${lateIndicator ? `<div style="margin-top:4px">${lateIndicator}</div>` : ""}
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">
+        ${lateIndicator}
+        ${exceedIndicator}
+      </div>
     </div>`;
   }).join("");
 }
@@ -346,6 +401,44 @@ async function selectPR(prId) {
                     <div><strong>Date :</strong> ${pr.createdDate}</div>`;
 
   renderChecklist(prId, pr.tasks, pr.progress);
+  
+  // Show processing time info
+  showProcessingTimeInfo(pr);
+}
+
+function showProcessingTimeInfo(pr) {
+  const prData = allPRs.find(p => p.id === pr.id);
+  if (!prData) return;
+  
+  const infoDiv = document.getElementById("processingTimeInfo");
+  const textSpan = document.getElementById("processingTimeText");
+  
+  if (prData.processing_weeks === 0) {
+    infoDiv.style.display = "none";
+    return;
+  }
+  
+  const limits = processingLimits[prData.category] || {};
+  const maxWeeks = limits.max_weeks || 0;
+  const isExceeded = prData.exceeded;
+  
+  let message = `<strong>Durée totale :</strong> ${prData.processing_weeks} semaine${prData.processing_weeks > 1 ? 's' : ''} `;
+  if (maxWeeks > 0) {
+    message += `/ ${maxWeeks} semaines max`;
+    if (isExceeded) {
+      message += ` <span style="color:#C0392B;font-weight:bold;">— Délai dépassé !</span>`;
+      infoDiv.style.background = "#F8D7DA";
+      infoDiv.style.borderColor = "#F5C6CB";
+      infoDiv.style.color = "#721C24";
+    } else {
+      infoDiv.style.background = "#D4EDDA";
+      infoDiv.style.borderColor = "#C3E6CB";
+      infoDiv.style.color = "#155724";
+    }
+  }
+  
+  textSpan.innerHTML = message;
+  infoDiv.style.display = "block";
 }
 
 function renderChecklist(prId, tasks, progress) {
@@ -486,6 +579,10 @@ function refreshTaskDelayUI(prId, tid, res) {
       allPRs.reduce((a, p) => a + (p.warning_steps || 0), 0)
     );
     loadAndRenderAlerts();
+    // Refresh processing time display
+    if (selectedPRId === prId) {
+      loadPRList(document.getElementById("searchInput").value);
+    }
   }
 }
 

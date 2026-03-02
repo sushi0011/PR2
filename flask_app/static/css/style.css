@@ -825,6 +825,7 @@ html, body {
 }
 .badge-late    { background: #FADBD8; color: #C0392B; }
 .badge-warning { background: #FDEBD0; color: #CA6F1E; }
+.badge-exceed  { background: #E8DAEF; color: #7D3C98; }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    ALERT BANNER — top of dashboard
