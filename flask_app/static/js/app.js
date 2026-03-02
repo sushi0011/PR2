@@ -19,6 +19,7 @@ document.addEventListener("DOMContentLoaded", () => {
   loadProcessingLimits();
   loadDocuments();
   loadPRList();
+  loadKPIData();
   bindForm();
   bindSearch();
   bindImportExport();
@@ -26,6 +27,7 @@ document.addEventListener("DOMContentLoaded", () => {
   bindModalClose();
   bindHelpButton();
   bindDocumentsButton();
+  bindKPIControls();
 });
 
 /* ── CLOCK ──────────────────────────────────────────────────────────────────── */
@@ -221,6 +223,94 @@ async function deleteDocument(docId) {
 function escapeHtml(text) {
   const map = {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'};
   return text.replace(/[&<>"']/g, m => map[m]);
+}
+
+/* ── KPI PROCESSING DELAYS ──────────────────────────────────────────────────── */
+async function loadKPIData() {
+  await renderKPITable("");
+}
+
+function bindKPIControls() {
+  const filterSelect = document.getElementById("kpiCategoryFilter");
+  const updateBtn = document.getElementById("btnUpdateKPI");
+  
+  if (filterSelect) {
+    filterSelect.addEventListener("change", (e) => {
+      renderKPITable(e.target.value);
+    });
+  }
+  
+  if (updateBtn) {
+    updateBtn.addEventListener("click", async () => {
+      updateBtn.disabled = true;
+      updateBtn.innerHTML = '<span class="glyphicon glyphicon-refresh" style="animation:spin 1s linear infinite"></span> Mise à jour...';
+      await renderKPITable(document.getElementById("kpiCategoryFilter").value);
+      updateBtn.disabled = false;
+      updateBtn.innerHTML = '<span class="glyphicon glyphicon-refresh"></span> Mise à jour';
+      showToast("Délais recalculés avec succès", "success");
+    });
+  }
+}
+
+async function renderKPITable(category = "") {
+  const tableBody = document.getElementById("kpiTableBody");
+  if (!tableBody) return;
+  
+  let url = "/api/kpi/processing-delays";
+  if (category) {
+    url += `?category=${encodeURIComponent(category)}`;
+  }
+  
+  try {
+    const data = await api(url);
+    
+    if (data.length === 0) {
+      tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:#999">Aucune PR trouvée</td></tr>';
+      return;
+    }
+    
+    tableBody.innerHTML = data.map(pr => {
+      const indicator = getKPIIndicator(pr.category, pr.delay_weeks, pr.status);
+      return `
+        <tr>
+          <td><strong>PR #${escapeHtml(pr.number)}</strong></td>
+          <td>${escapeHtml(pr.title)}</td>
+          <td><span class="status-badge status-${pr.category.toLowerCase()}" style="font-size:11px">${pr.category}</span></td>
+          <td><strong>${pr.delay_weeks}</strong> semaines</td>
+          <td>${statusLabel(pr.status)}</td>
+          <td>
+            ${indicator}
+          </td>
+        </tr>
+      `;
+    }).join('');
+  } catch (err) {
+    console.error("[v0] Failed to load KPI data:", err);
+    tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:#c00">Erreur de chargement des données</td></tr>';
+  }
+}
+
+function getKPIIndicator(category, delayWeeks, status) {
+  if (status !== "cloturee") {
+    return '<span class="kpi-indicator warning"><span class="glyphicon glyphicon-time"></span> En cours</span>';
+  }
+  
+  let maxWeeks = 0;
+  if (category === "ED") maxWeeks = 10;
+  else if (category === "CR") maxWeeks = 11;
+  else if (category === "COU") maxWeeks = 14;
+  else if (category === "Hybride") maxWeeks = 14; // Default to 14 for hybrid
+  
+  if (maxWeeks === 0) {
+    return '<span class="kpi-indicator warning"><span class="glyphicon glyphicon-question-sign"></span> N/A</span>';
+  }
+  
+  if (delayWeeks <= maxWeeks) {
+    return `<span class="kpi-indicator ontime"><span class="glyphicon glyphicon-ok"></span> À temps</span>`;
+  } else {
+    const excess = (delayWeeks - maxWeeks).toFixed(1);
+    return `<span class="kpi-indicator late"><span class="glyphicon glyphicon-alert"></span> +${excess}s</span>`;
+  }
 }
 
 /* ── LOAD ALL PR ────────────────────────────────────────────────────────────── */

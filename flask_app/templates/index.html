@@ -125,6 +125,46 @@
     <div id="alertsList" class="alerts-list"></div>
   </div>
 
+  <!-- ── KPI DÉLAI DE TRAITEMENT ───────────────────────────────────────────── -->
+  <div class="kpi-processing-section">
+    <div class="kpi-processing-header">
+      <h3 style="margin:0;display:flex;align-items:center;gap:8px">
+        <span class="glyphicon glyphicon-time"></span>
+        Délai de Traitement
+      </h3>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="kpiCategoryFilter" class="kpi-filter-select" style="padding:6px 10px;border:1px solid #D0D0D0;border-radius:4px;font-size:12px">
+          <option value="">Tous les types</option>
+          <option value="ED">ED</option>
+          <option value="CR">CR</option>
+          <option value="COU">COU</option>
+          <option value="Hybride">Hybride</option>
+        </select>
+        <button id="btnUpdateKPI" class="btn-update-kpi" title="Recalculer tous les délais">
+          <span class="glyphicon glyphicon-refresh"></span> Mise à jour
+        </button>
+      </div>
+    </div>
+    
+    <div class="kpi-table-wrapper">
+      <table class="kpi-processing-table" id="kpiTable">
+        <thead>
+          <tr>
+            <th>PR #</th>
+            <th>Titre</th>
+            <th>Type</th>
+            <th>Délai (semaines)</th>
+            <th>Statut</th>
+            <th>Indicateur</th>
+          </tr>
+        </thead>
+        <tbody id="kpiTableBody">
+          <tr><td colspan="6" style="text-align:center;padding:20px;color:#999">Chargement...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
 </div><!-- /#dashboardView -->
 
 <!-- ═══════════════════ CHECKLIST VIEW ══════════════════════════════════ -->
@@ -180,7 +220,7 @@
         
         <div style="margin-bottom:12px">
           <label class="form-label">Nom du document</label>
-          <input type="text" id="docName" class="form-input" placeholder="Ex: Certificat d'assurance, Bon de livraison, etc.">
+          <input type="text" id="docName" class="form-input" placeholder="Ex: Rapport de binome, Bon de livraison, etc.">
         </div>
         
         <div style="display:flex;gap:12px;margin-bottom:12px">

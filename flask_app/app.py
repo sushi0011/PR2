@@ -55,6 +55,11 @@ def init_db():
     if "date_reelle" not in existing:
         c.execute("ALTER TABLE task ADD COLUMN date_reelle TEXT DEFAULT ''")
     
+    # Migration: add custom_steps column to PR table if it doesn't exist
+    pr_cols = [row[1] for row in c.execute("PRAGMA table_info(pr)").fetchall()]
+    if "custom_steps" not in pr_cols:
+        c.execute("ALTER TABLE pr ADD COLUMN custom_steps TEXT DEFAULT ''")
+    
     c.execute("""
         CREATE TABLE IF NOT EXISTS document (
             id          TEXT PRIMARY KEY,
@@ -293,6 +298,82 @@ def count_late_steps_for_pr(tasks: dict) -> dict:
     warning = sum(1 for t in tasks.values() if t.get("delay") == "warning")
     late    = sum(1 for t in tasks.values() if t.get("delay") == "late")
     return {"warning": warning, "late": late}
+
+def calculate_kpi_delay(pr_data, tasks: dict) -> dict:
+    """
+    Calculate processing delay in weeks based on PR category.
+    
+    Logic:
+    - CR: Time from step 3 (Étude technique) to status = "cloturé"
+    - ED: Time from step 7 (Signature de l'acte) to status = "cloturé"
+    - COU: Time from step 1 (first step) to status = "cloturé"
+    - Hybride: Time from step 1 (first step) to status = "cloturé"
+    
+    Returns: { "delay_days": int, "delay_weeks": float, "start_date": str, "end_date": str }
+    """
+    category = pr_data.get("category", "")
+    status = pr_data.get("status", "")
+    created_date = pr_data.get("created_date", "")
+    
+    if not tasks or not created_date:
+        return {"delay_days": 0, "delay_weeks": 0, "start_date": "", "end_date": "", "status": status}
+    
+    try:
+        # Determine starting step based on category
+        start_step_idx = 0
+        if category == "CR":
+            start_step_idx = 3  # Step 3 (Étude technique)
+        elif category == "ED":
+            start_step_idx = 7  # Step 7 (Signature)
+        elif category in ["COU", "Hybride"]:
+            start_step_idx = 1  # Step 1 (first step)
+        
+        # Find start date from the appropriate step
+        start_date = None
+        if str(start_step_idx) in tasks:
+            task = tasks[str(start_step_idx)]
+            if task.get("date_reelle"):
+                start_date = date.fromisoformat(task["date_reelle"])
+        
+        # If start date not found, try first completed step
+        if not start_date:
+            for task_id in sorted(tasks.keys(), key=lambda x: int(x)):
+                task = tasks[task_id]
+                if task.get("date_reelle"):
+                    start_date = date.fromisoformat(task["date_reelle"])
+                    break
+        
+        if not start_date:
+            return {"delay_days": 0, "delay_weeks": 0, "start_date": "", "end_date": "", "status": status}
+        
+        # End date is when status becomes "cloturé"
+        if status == "cloturee":
+            # Find the last completed step date
+            end_date = None
+            for task_id in sorted(tasks.keys(), key=lambda x: int(x), reverse=True):
+                task = tasks[task_id]
+                if task.get("date_reelle"):
+                    end_date = date.fromisoformat(task["date_reelle"])
+                    break
+            
+            if not end_date:
+                end_date = start_date
+        else:
+            # For non-closed PRs, calculate from start to today
+            end_date = date.today()
+        
+        delay_days = (end_date - start_date).days
+        delay_weeks = round(delay_days / 7, 1)
+        
+        return {
+            "delay_days": max(0, delay_days),
+            "delay_weeks": max(0, delay_weeks),
+            "start_date": start_date.isoformat(),
+            "end_date": end_date.isoformat(),
+            "status": status
+        }
+    except (ValueError, KeyError):
+        return {"delay_days": 0, "delay_weeks": 0, "start_date": "", "end_date": "", "status": status}
 
 # ─── ROUTES ───────────────────────────────────────────────────────────────────
 
@@ -757,6 +838,44 @@ def delete_document(doc_id):
     conn.close()
     
     return jsonify({"success": True})
+
+
+# ── KPI PROCESSING DELAYS ────────────────────────────────────────────────────
+
+@app.route("/api/kpi/processing-delays", methods=["GET"])
+def get_kpi_processing_delays():
+    category_filter = request.args.get("category", "")
+    
+    conn = get_db()
+    c = conn.cursor()
+    rows = c.execute("SELECT * FROM pr ORDER BY created_date DESC").fetchall()
+    
+    kpi_data = []
+    for row in rows:
+        # Apply category filter
+        if category_filter and row["category"] != category_filter:
+            continue
+        
+        pr_data = row_to_pr(row)
+        tasks = load_tasks(conn, row["id"])
+        
+        # Calculate KPI delay
+        kpi = calculate_kpi_delay(pr_data, tasks)
+        
+        kpi_data.append({
+            "id": pr_data["id"],
+            "number": pr_data["number"],
+            "title": pr_data["title"],
+            "category": pr_data["category"],
+            "status": pr_data["status"],
+            "delay_weeks": kpi["delay_weeks"],
+            "delay_days": kpi["delay_days"],
+            "start_date": kpi["start_date"],
+            "end_date": kpi["end_date"]
+        })
+    
+    conn.close()
+    return jsonify(kpi_data)
 
 
 # ── IMPORT EXCEL ──────────────────────────────────────────────────────────────

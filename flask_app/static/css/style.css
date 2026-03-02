@@ -1142,3 +1142,109 @@ html, body {
   background: #2980b9;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   KPI PROCESSING DELAYS
+   ═══════════════════════════════════════════════════════════════════════════ */
+.kpi-processing-section {
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #E0E0E0;
+  padding: 20px;
+  margin-top: 20px;
+}
+
+.kpi-processing-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.kpi-filter-select {
+  font-size: 12px;
+  background: white;
+}
+
+.btn-update-kpi {
+  padding: 8px 14px;
+  background: #27AE60;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.2s;
+}
+
+.btn-update-kpi:hover {
+  background: #229954;
+}
+
+.kpi-table-wrapper {
+  overflow-x: auto;
+}
+
+.kpi-processing-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.kpi-processing-table thead {
+  background: #F5F7FA;
+  border-bottom: 2px solid #D0D0D0;
+}
+
+.kpi-processing-table th {
+  padding: 12px;
+  text-align: left;
+  font-weight: 700;
+  color: #2C3E50;
+}
+
+.kpi-processing-table td {
+  padding: 12px;
+  border-bottom: 1px solid #E0E0E0;
+  color: #34495E;
+}
+
+.kpi-processing-table tbody tr:hover {
+  background: #FAFAFA;
+}
+
+.kpi-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.kpi-indicator.ontime {
+  background: #D4EDDA;
+  color: #155724;
+}
+
+.kpi-indicator.warning {
+  background: #FFF3CD;
+  color: #856404;
+}
+
+.kpi-indicator.late {
+  background: #F8D7DA;
+  color: #721C24;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
