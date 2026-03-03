@@ -250,38 +250,62 @@
   </div>
 </div>
 
-<!-- ═══════════════════ HYBRID PR STEP BUILDER MODAL ═══════════════════════ -->
-<div id="hybridStepBuilderModal" class="modal" style="display:none">
-  <div class="modal-content" style="max-width:500px">
+<!-- ═══════════════════ HYBRID CATEGORY EDIT MODAL ════════════════════════════ -->
+<div id="hybridCategoryEditModal" class="modal" style="display:none">
+  <div class="modal-content" style="max-width:400px">
     <div class="modal-header">
       <h3 class="modal-title">
-        <span class="glyphicon glyphicon-plus"></span>
-        Créer une PR Hybride
+        <span class="glyphicon glyphicon-pencil"></span>
+        Modifier le nom de la catégorie
       </h3>
-      <button class="modal-close" onclick="closeModal('hybridStepBuilderModal')">&times;</button>
+      <button class="modal-close" onclick="closeModal('hybridCategoryEditModal')">&times;</button>
     </div>
     
     <div class="modal-body">
       <div style="margin-bottom:16px">
         <label class="form-label">Nom de la catégorie (ex: Avenant, Régularisation)</label>
-        <input type="text" id="hybridCategoryName" class="form-input" placeholder="Avenant" value="Hybride">
+        <input type="text" id="hybridCategoryNameInput" class="form-input">
+      </div>
+      
+      <div style="display:flex;gap:8px">
+        <button class="btn-primary" onclick="saveHybridCategoryName()" style="flex:1;padding:10px">
+          <span class="glyphicon glyphicon-ok"></span> Enregistrer
+        </button>
+        <button style="flex:1;padding:10px;background:#E0E0E0;color:#333;border:none;border-radius:6px;font-weight:600;cursor:pointer" onclick="closeModal('hybridCategoryEditModal')">
+          Annuler
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ HYBRID ADD STEP MODAL ════════════════════════════════ -->
+<div id="hybridAddStepModal" class="modal" style="display:none">
+  <div class="modal-content" style="max-width:500px">
+    <div class="modal-header">
+      <h3 class="modal-title">
+        <span class="glyphicon glyphicon-plus"></span>
+        Ajouter une étape personnalisée
+      </h3>
+      <button class="modal-close" onclick="closeModal('hybridAddStepModal')">&times;</button>
+    </div>
+    
+    <div class="modal-body">
+      <div style="margin-bottom:12px">
+        <label class="form-label">Titre de l'étape</label>
+        <input type="text" id="hybridStepTitle" class="form-input" placeholder="Ex: Signature du contrat">
       </div>
       
       <div style="margin-bottom:16px">
-        <label class="form-label" style="display:flex;align-items:center;justify-content:space-between">
-          <span>Étapes</span>
-          <button class="btn-add-step" onclick="addHybridStep()">
-            <span class="glyphicon glyphicon-plus"></span> Ajouter une étape
-          </button>
-        </label>
-        <div id="hybridStepsContainer" class="hybrid-steps-container"></div>
+        <label class="form-label">Description</label>
+        <textarea id="hybridStepDesc" class="form-input" placeholder="Description optionnelle" rows="3"></textarea>
       </div>
       
-      <div style="display:flex;gap:8px;margin-top:20px">
-        <button class="btn-primary" onclick="saveHybridPR()" style="flex:1;padding:10px">
-          <span class="glyphicon glyphicon-ok"></span> Créer
+      <div style="display:flex;gap:8px">
+        <button class="btn-primary" onclick="saveNewHybridStep()" style="flex:1;padding:10px">
+          <span class="glyphicon glyphicon-ok"></span> Ajouter
         </button>
-        <button style="flex:1;padding:10px;background:#E0E0E0;color:#333;border:none;border-radius:6px;font-weight:600;cursor:pointer" onclick="closeModal('hybridStepBuilderModal')">
+        <button style="flex:1;padding:10px;background:#E0E0E0;color:#333;border:none;border-radius:6px;font-weight:600;cursor:pointer" onclick="closeModal('hybridAddStepModal')">
           Annuler
         </button>
       </div>

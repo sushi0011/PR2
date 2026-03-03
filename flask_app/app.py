@@ -198,6 +198,10 @@ STEPS_DATA = {
         {"id": 4, "title": "Attribution et notification",
          "desc": "Attribuer le marché au soumissionnaire retenu, notifier officiellement tous les soumissionnaires du résultat et créer le BC sur Ariba pour clôturer le dossier."},
     ],
+    "Hybride": [
+        {"id": 1, "title": "Entrer la première étape",
+         "desc": "Première étape personnalisée du processus Hybride."},
+    ],
 }
 
 # ─── HELPERS ──────────────────────────────────────────────────────────────────
@@ -559,6 +563,51 @@ def set_status(pr_id):
     conn.commit()
     conn.close()
     return jsonify({"message": "Statut mis à jour"})
+
+
+# ── ADD HYBRID STEP ───────────────────────────────────────────────────────────
+
+@app.route("/api/pr/<pr_id>/add-step", methods=["POST"])
+def add_hybrid_step(pr_id):
+    """Add a new step to a Hybrid PR."""
+    conn = get_db()
+    row = conn.execute("SELECT * FROM pr WHERE id = ?", (pr_id,)).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"error": "PR introuvable"}), 404
+    
+    if row["category"] != "Hybride":
+        conn.close()
+        return jsonify({"error": "Cette PR n'est pas de type Hybride"}), 400
+    
+    # Get current steps
+    tasks = load_tasks(conn, pr_id)
+    
+    # Find next task ID
+    max_id = max([int(task_id) for task_id in tasks.keys()]) if tasks else 0
+    new_task_id = str(max_id + 1)
+    
+    title = request.json.get("title", "").strip()
+    desc = request.json.get("desc", "").strip()
+    
+    if not title:
+        conn.close()
+        return jsonify({"error": "Le titre est requis"}), 400
+    
+    # Insert new task
+    conn.execute("""
+        INSERT INTO task (pr_id, task_id, title, desc, date_prev, date_reelle, done)
+        VALUES (?, ?, ?, ?, '', '', 0)
+    """, (pr_id, new_task_id, title, desc))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({
+        "task_id": new_task_id,
+        "title": title,
+        "desc": desc,
+        "success": True
+    })
 
 
 # ── STEPS REFERENCE ───────────────────────────────────────────────────────────

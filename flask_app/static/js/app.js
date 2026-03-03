@@ -282,80 +282,77 @@ function escapeHtml(text) {
   return text.replace(/[&<>"']/g, m => map[m]);
 }
 
-/* ── HYBRID PR STEP BUILDER ─────────────────────────────────────────────────── */
-function addHybridStep() {
-  const stepId = Date.now();
-  hybridSteps.push({ id: stepId, title: "", description: "" });
-  renderHybridSteps();
-}
+/* ── HYBRID PR MANAGEMENT ──────────────────────────────────────────────────── */
+let editingHybridPRId = null;
 
-function renderHybridSteps() {
-  const container = document.getElementById("hybridStepsContainer");
-  if (!container) return;
+function openHybridCategoryEdit(prId) {
+  editingHybridPRId = prId;
+  const pr = allPRs.find(p => p.id === prId);
+  if (!pr) return;
   
-  if (hybridSteps.length === 0) {
-    container.innerHTML = '<div style="color:#999;text-align:center;padding:20px">Aucune étape ajoutée</div>';
-    return;
-  }
+  document.getElementById("hybridCategoryNameInput").value = pr.category;
+  const modal = document.getElementById("hybridCategoryEditModal");
+  if (modal) modal.style.display = "flex";
+}
+
+async function saveHybridCategoryName() {
+  if (!editingHybridPRId) return;
   
-  container.innerHTML = hybridSteps.map((step, idx) => `
-    <div class="hybrid-step-item">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-        <span style="font-weight:600;color:#2C3E50">Étape ${idx + 1}</span>
-        <button class="btn-step-remove" onclick="removeHybridStep(${step.id})" title="Supprimer">
-          <span class="glyphicon glyphicon-remove"></span>
-        </button>
-      </div>
-      <input type="text" class="form-input" placeholder="Titre de l'étape" 
-             value="${escapeHtml(step.title)}"
-             onchange="updateHybridStep(${step.id}, 'title', this.value)" 
-             style="margin-bottom:6px">
-      <textarea class="form-input" placeholder="Description (optionnel)" rows="2"
-                onchange="updateHybridStep(${step.id}, 'description', this.value)"
-                style="margin-bottom:12px">${escapeHtml(step.description)}</textarea>
-    </div>
-  `).join('');
-}
-
-function updateHybridStep(stepId, field, value) {
-  const step = hybridSteps.find(s => s.id === stepId);
-  if (step) {
-    step[field] = value;
-  }
-}
-
-function removeHybridStep(stepId) {
-  hybridSteps = hybridSteps.filter(s => s.id !== stepId);
-  renderHybridSteps();
-}
-
-async function saveHybridPR() {
-  const categoryName = document.getElementById("hybridCategoryName").value.trim();
-  
-  if (!categoryName) {
+  const newName = document.getElementById("hybridCategoryNameInput").value.trim();
+  if (!newName) {
     showToast("Veuillez entrer un nom de catégorie", "error");
     return;
   }
   
-  if (hybridSteps.length === 0) {
-    showToast("Veuillez ajouter au moins une étape", "error");
+  const result = await api(`/api/pr/${editingHybridPRId}`, "PUT", {
+    category: newName
+  });
+  
+  if (result.error) {
+    showToast("Erreur lors de la modification", "error");
     return;
   }
   
-  // Check that all steps have a title
-  if (hybridSteps.some(s => !s.title.trim())) {
-    showToast("Chaque étape doit avoir un titre", "error");
+  const pr = allPRs.find(p => p.id === editingHybridPRId);
+  if (pr) pr.category = newName;
+  
+  closeModal("hybridCategoryEditModal");
+  selectPR(editingHybridPRId);
+  showToast("Catégorie modifiée avec succès", "success");
+}
+
+async function openAddHybridStepModal(prId) {
+  editingHybridPRId = prId;
+  document.getElementById("hybridStepTitle").value = "";
+  document.getElementById("hybridStepDesc").value = "";
+  const modal = document.getElementById("hybridAddStepModal");
+  if (modal) modal.style.display = "flex";
+}
+
+async function saveNewHybridStep() {
+  if (!editingHybridPRId) return;
+  
+  const title = document.getElementById("hybridStepTitle").value.trim();
+  const desc = document.getElementById("hybridStepDesc").value.trim();
+  
+  if (!title) {
+    showToast("Veuillez entrer un titre pour l'étape", "error");
     return;
   }
   
-  // Close the modal
-  closeModal("hybridStepBuilderModal");
+  const result = await api(`/api/pr/${editingHybridPRId}/add-step`, "POST", {
+    title: title,
+    desc: desc
+  });
   
-  // Store custom steps for later use when creating PR
-  window.hybridCustomSteps = hybridSteps;
-  window.hybridCustomCategoryName = categoryName;
+  if (result.error) {
+    showToast("Erreur lors de l'ajout de l'étape", "error");
+    return;
+  }
   
-  showToast("Étapes sauvegardées. Continuez la création du PR.", "success");
+  closeModal("hybridAddStepModal");
+  selectPR(editingHybridPRId);
+  showToast("Étape ajoutée avec succès", "success");
 }
 
 /* ── KPI PROCESSING DELAYS ──────────────────────────────────────────────────── */
@@ -754,9 +751,23 @@ async function selectPR(prId) {
   document.getElementById("checklistSubtitle").textContent = `${pr.category} · ${pr.createdDate}`;
 
   const meta = document.getElementById("checklistMeta");
-  meta.innerHTML = `<div><strong>Catégorie :</strong> ${pr.category}</div>
-                    <div><strong>Statut :</strong> ${statusLabel(pr.status)}</div>
-                    <div><strong>Date :</strong> ${pr.createdDate}</div>`;
+  let metaHTML = `<div><strong>Catégorie :</strong> ${pr.category}</div>
+                  <div><strong>Statut :</strong> ${statusLabel(pr.status)}</div>
+                  <div><strong>Date :</strong> ${pr.createdDate}</div>`;
+  
+  // Add Hybrid buttons if applicable
+  if (pr.category === "Hybride") {
+    metaHTML += `<div style="margin-top:12px;display:flex;gap:8px">
+      <button class="btn-primary" onclick="openHybridCategoryEdit('${pr.id}')" style="padding:6px 12px;font-size:12px">
+        <span class="glyphicon glyphicon-pencil"></span> Renommer
+      </button>
+      <button class="btn-primary" onclick="openAddHybridStepModal('${pr.id}')" style="padding:6px 12px;font-size:12px;background:#27AE60">
+        <span class="glyphicon glyphicon-plus"></span> Ajouter étape
+      </button>
+    </div>`;
+  }
+  
+  meta.innerHTML = metaHTML;
 
   renderChecklist(prId, pr.tasks, pr.progress);
   
@@ -971,19 +982,7 @@ function bindForm() {
     btn.addEventListener("click", () => {
       document.querySelectorAll(".cat-btn").forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
-      const category = btn.dataset.cat;
-      document.getElementById("prCategory").value = category;
-      
-      // If Hybrid is selected, open the step builder
-      if (category === "Hybride") {
-        hybridSteps = [];
-        addHybridStep();
-        document.getElementById("hybridCategoryName").value = "Hybride";
-        const modal = document.getElementById("hybridStepBuilderModal");
-        if (modal) {
-          modal.style.display = "flex";
-        }
-      }
+      document.getElementById("prCategory").value = btn.dataset.cat;
     });
   });
 
@@ -997,15 +996,6 @@ function bindForm() {
       prDate:   document.getElementById("prDate").value,
     };
     
-    // Add custom steps if Hybrid
-    if (body.category === "Hybride") {
-      if (!window.hybridCustomSteps || window.hybridCustomSteps.length === 0) {
-        return showToast("Veuillez définir les étapes du PR Hybride", "error");
-      }
-      body.custom_category_name = window.hybridCustomCategoryName || "Hybride";
-      body.custom_steps = JSON.stringify(window.hybridCustomSteps);
-    }
-    
     if (!body.number || !body.title || !body.category || !body.prDate) {
       return showToast("Veuillez remplir tous les champs", "error");
     }
@@ -1017,9 +1007,6 @@ function bindForm() {
     }
     if (res.error) return showToast(res.error, "error");
     showToast(editingId ? "PR mise à jour" : "PR créée avec succès", "success");
-    // Clear hybrid data
-    window.hybridCustomSteps = null;
-    window.hybridCustomCategoryName = null;
     resetForm();
     await loadPRList();
   });
