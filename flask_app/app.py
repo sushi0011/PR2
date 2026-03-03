@@ -55,10 +55,12 @@ def init_db():
     if "date_reelle" not in existing:
         c.execute("ALTER TABLE task ADD COLUMN date_reelle TEXT DEFAULT ''")
     
-    # Migration: add custom_steps column to PR table if it doesn't exist
+    # Migration: add custom_steps and base_category columns to PR table if they don't exist
     pr_cols = [row[1] for row in c.execute("PRAGMA table_info(pr)").fetchall()]
     if "custom_steps" not in pr_cols:
         c.execute("ALTER TABLE pr ADD COLUMN custom_steps TEXT DEFAULT ''")
+    if "base_category" not in pr_cols:
+        c.execute("ALTER TABLE pr ADD COLUMN base_category TEXT DEFAULT ''")
     
     c.execute("""
         CREATE TABLE IF NOT EXISTS document (
@@ -275,6 +277,7 @@ def row_to_pr(row) -> dict:
         "number":      row["number"],
         "title":       row["title"],
         "category":    row["category"],
+        "base_category": row.get("base_category", row["category"]),
         "status":      row["status"],
         "createdDate": row["created_date"],
     }
@@ -436,8 +439,8 @@ def create_pr():
     pr_id = f"PR-{number}-{datetime.now().strftime('%f')}"
     conn  = get_db()
     conn.execute(
-        "INSERT INTO pr (id, number, title, category, status, created_date) VALUES (?,?,?,?,?,?)",
-        (pr_id, number, title, category, "en-cours", pr_date)
+        "INSERT INTO pr (id, number, title, category, base_category, status, created_date) VALUES (?,?,?,?,?,?,?)",
+        (pr_id, number, title, category, category, "en-cours", pr_date)
     )
     for s in STEPS_DATA[category]:
         conn.execute(
@@ -908,8 +911,9 @@ def get_kpi_processing_delays():
     
     kpi_data = []
     for row in rows:
-        # Apply category filter
-        if category_filter and row["category"] != category_filter:
+        # Apply category filter based on base_category
+        base_cat = row.get("base_category") or row["category"]
+        if category_filter and base_cat != category_filter:
             continue
         
         pr_data = row_to_pr(row)

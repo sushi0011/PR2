@@ -797,6 +797,13 @@ async function selectPR(prId) {
   const pr = await api(`/api/pr/${prId}`);
   if (pr.error) return showToast(pr.error, "error");
 
+  // Store full PR data with tasks for later use in edit functions
+  const prInList = allPRs.find(p => p.id === prId);
+  if (prInList) {
+    prInList.tasks = pr.tasks;
+    prInList.base_category = pr.base_category || pr.category;
+  }
+
   showView("checklistView");
 
   document.getElementById("checklistTitle").textContent    = `PR #${pr.number} — ${pr.title}`;
@@ -807,8 +814,9 @@ async function selectPR(prId) {
                   <div><strong>Statut :</strong> ${statusLabel(pr.status)}</div>
                   <div><strong>Date :</strong> ${pr.createdDate}</div>`;
   
-  // Add Hybrid buttons if applicable
-  if (pr.category === "Hybride") {
+  // Add Hybrid buttons if applicable - check base_category
+  const isHybride = (pr.base_category || pr.category) === "Hybride";
+  if (isHybride) {
     metaHTML += `<div style="margin-top:12px;display:flex;gap:8px">
       <button class="btn-primary" onclick="openHybridCategoryEdit('${pr.id}')" style="padding:6px 12px;font-size:12px">
         <span class="glyphicon glyphicon-pencil"></span> Renommer
@@ -821,7 +829,7 @@ async function selectPR(prId) {
   
   meta.innerHTML = metaHTML;
 
-  renderChecklist(prId, pr.tasks, pr.progress);
+  renderChecklist(prId, pr.tasks, pr.progress, isHybride);
   
   // Show processing time info
   showProcessingTimeInfo(pr);
@@ -862,16 +870,13 @@ function showProcessingTimeInfo(pr) {
   infoDiv.style.display = "block";
 }
 
-function renderChecklist(prId, tasks, progress) {
+function renderChecklist(prId, tasks, progress, isHybride = false) {
   updateProgressUI(progress);
   const container = document.getElementById("checklistContainer");
   if (!tasks || !Object.keys(tasks).length) {
     container.innerHTML = `<p style="color:var(--grey-400)">Aucune étape définie.</p>`;
     return;
   }
-  
-  const pr = allPRs.find(p => p.id === prId);
-  const isHybride = pr && pr.category === "Hybride";
   
   container.innerHTML = Object.entries(tasks).map(([tid, task]) => {
     const done  = task.done;
