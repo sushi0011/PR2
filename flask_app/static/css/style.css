@@ -652,6 +652,22 @@ html, body {
 }
 .task-toggle-btn.open { transform: rotate(180deg); color: var(--red); }
 
+.btn-step-edit {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #2980B9;
+  font-size: 14px;
+  padding: 0 4px;
+  transition: color var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-step-edit:hover {
+  color: #1E5BA8;
+}
+
 .task-body {
   display: none;
   padding: 0 16px 14px 16px;
@@ -935,7 +951,7 @@ html, body {
 
 /* ═══════════════════════════════════════════════════════════════════════════
    ALERTS PANEL — detailed list below charts
-   ═══════════════════════════════════════════════════════════════════════════ */
+   ════════════════════════���══════════════════════════════════════════════════ */
 .alerts-panel {
   background: var(--white);
   border-radius: 14px;

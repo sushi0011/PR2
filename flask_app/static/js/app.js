@@ -284,6 +284,61 @@ function escapeHtml(text) {
 
 /* ── HYBRID PR MANAGEMENT ──────────────────────────────────────────────────── */
 let editingHybridPRId = null;
+let editingStepId = null;
+
+function openStepEdit(prId, stepId) {
+  editingHybridPRId = prId;
+  editingStepId = stepId;
+  
+  const pr = allPRs.find(p => p.id === prId);
+  if (!pr) return;
+  
+  const tasks = Object.values(pr.tasks || {});
+  const task = tasks.find(t => Object.values(pr.tasks || {}).indexOf(t) === parseInt(stepId) - 1);
+  
+  // Find task by getting from API or allPRs
+  let stepData = null;
+  for (const tid in (pr.tasks || {})) {
+    if (tid === stepId) {
+      stepData = pr.tasks[tid];
+      break;
+    }
+  }
+  
+  if (!stepData) return;
+  
+  document.getElementById("editStepTitle").value = stepData.title || "";
+  document.getElementById("editStepDesc").value = stepData.desc || "";
+  
+  const modal = document.getElementById("stepEditModal");
+  if (modal) modal.style.display = "flex";
+}
+
+async function saveStepEdit() {
+  if (!editingHybridPRId || !editingStepId) return;
+  
+  const title = document.getElementById("editStepTitle").value.trim();
+  const desc = document.getElementById("editStepDesc").value.trim();
+  
+  if (!title) {
+    showToast("Veuillez entrer un titre pour l'étape", "error");
+    return;
+  }
+  
+  const result = await api(`/api/pr/${editingHybridPRId}/step/${editingStepId}`, "PUT", {
+    title: title,
+    desc: desc
+  });
+  
+  if (result.error) {
+    showToast("Erreur lors de la modification", "error");
+    return;
+  }
+  
+  closeModal("stepEditModal");
+  selectPR(editingHybridPRId);
+  showToast("Étape modifiée avec succès", "success");
+}
 
 function openHybridCategoryEdit(prId) {
   editingHybridPRId = prId;
@@ -817,9 +872,14 @@ function renderChecklist(prId, tasks, progress) {
     container.innerHTML = `<p style="color:var(--grey-400)">Aucune étape définie.</p>`;
     return;
   }
+  
+  const pr = allPRs.find(p => p.id === prId);
+  const isHybride = pr && pr.category === "Hybride";
+  
   container.innerHTML = Object.entries(tasks).map(([tid, task]) => {
     const done  = task.done;
     const delay = task.delay || "";
+    const editBtn = isHybride ? `<button class="btn-step-edit" onclick="openStepEdit('${prId}','${tid}')" title="Modifier"><span class="glyphicon glyphicon-pencil"></span></button>` : '';
     return `
     <div class="task-item ${done ? "task-done" : ""} ${delay ? "task-delay-" + delay : ""}" id="taskItem-${tid}">
       <div class="task-header" onclick="toggleTaskBody('${tid}')">
@@ -829,6 +889,7 @@ function renderChecklist(prId, tasks, progress) {
           <div class="task-title">${escHtml(task.title)} ${delayIcon(delay)}</div>
           <div class="task-desc">${escHtml(task.desc)}</div>
         </div>
+        ${editBtn}
         <button class="task-toggle-btn" id="toggleBtn-${tid}">
           <span class="glyphicon glyphicon-chevron-down"></span>
         </button>

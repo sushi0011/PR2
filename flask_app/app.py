@@ -565,6 +565,40 @@ def set_status(pr_id):
     return jsonify({"message": "Statut mis à jour"})
 
 
+# ── EDIT HYBRID STEP ──────────────────────────────────────────────────────────
+
+@app.route("/api/pr/<pr_id>/step/<step_id>", methods=["PUT"])
+def update_hybrid_step(pr_id, step_id):
+    """Update a step's title and description."""
+    conn = get_db()
+    row = conn.execute("SELECT * FROM pr WHERE id = ?", (pr_id,)).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"error": "PR introuvable"}), 404
+    
+    title = request.json.get("title", "").strip()
+    desc = request.json.get("desc", "").strip()
+    
+    if not title:
+        conn.close()
+        return jsonify({"error": "Le titre est requis"}), 400
+    
+    # Update task
+    conn.execute(
+        "UPDATE task SET title = ?, description = ? WHERE pr_id = ? AND task_id = ?",
+        (title, desc, pr_id, step_id)
+    )
+    conn.commit()
+    conn.close()
+    
+    return jsonify({
+        "task_id": step_id,
+        "title": title,
+        "desc": desc,
+        "success": True
+    })
+
+
 # ── ADD HYBRID STEP ───────────────────────────────────────────────────────────
 
 @app.route("/api/pr/<pr_id>/add-step", methods=["POST"])

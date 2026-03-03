@@ -313,6 +313,40 @@
   </div>
 </div>
 
+<!-- ═══════════════════ STEP EDIT MODAL ══════════════════════════════════ -->
+<div id="stepEditModal" class="modal" style="display:none">
+  <div class="modal-content" style="max-width:500px">
+    <div class="modal-header">
+      <h3 class="modal-title">
+        <span class="glyphicon glyphicon-pencil"></span>
+        Modifier l'étape
+      </h3>
+      <button class="modal-close" onclick="closeModal('stepEditModal')">&times;</button>
+    </div>
+    
+    <div class="modal-body">
+      <div style="margin-bottom:12px">
+        <label class="form-label">Titre de l'étape</label>
+        <input type="text" id="editStepTitle" class="form-input">
+      </div>
+      
+      <div style="margin-bottom:16px">
+        <label class="form-label">Description</label>
+        <textarea id="editStepDesc" class="form-input" placeholder="Description optionnelle" rows="3"></textarea>
+      </div>
+      
+      <div style="display:flex;gap:8px">
+        <button class="btn-primary" onclick="saveStepEdit()" style="flex:1;padding:10px">
+          <span class="glyphicon glyphicon-ok"></span> Enregistrer
+        </button>
+        <button style="flex:1;padding:10px;background:#E0E0E0;color:#333;border:none;border-radius:6px;font-weight:600;cursor:pointer" onclick="closeModal('stepEditModal')">
+          Annuler
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════════ DOCUMENT EDIT MODAL ════════════════════════════════ -->
 <div id="documentEditModal" class="modal" style="display:none">
   <div class="modal-content" style="max-width:400px">
