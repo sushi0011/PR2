@@ -250,4 +250,83 @@
   </div>
 </div>
 
+<!-- ═══════════════════ HYBRID PR STEP BUILDER MODAL ═══════════════════════ -->
+<div id="hybridStepBuilderModal" class="modal" style="display:none">
+  <div class="modal-content" style="max-width:500px">
+    <div class="modal-header">
+      <h3 class="modal-title">
+        <span class="glyphicon glyphicon-plus"></span>
+        Créer une PR Hybride
+      </h3>
+      <button class="modal-close" onclick="closeModal('hybridStepBuilderModal')">&times;</button>
+    </div>
+    
+    <div class="modal-body">
+      <div style="margin-bottom:16px">
+        <label class="form-label">Nom de la catégorie (ex: Avenant, Régularisation)</label>
+        <input type="text" id="hybridCategoryName" class="form-input" placeholder="Avenant" value="Hybride">
+      </div>
+      
+      <div style="margin-bottom:16px">
+        <label class="form-label" style="display:flex;align-items:center;justify-content:space-between">
+          <span>Étapes</span>
+          <button class="btn-add-step" onclick="addHybridStep()">
+            <span class="glyphicon glyphicon-plus"></span> Ajouter une étape
+          </button>
+        </label>
+        <div id="hybridStepsContainer" class="hybrid-steps-container"></div>
+      </div>
+      
+      <div style="display:flex;gap:8px;margin-top:20px">
+        <button class="btn-primary" onclick="saveHybridPR()" style="flex:1;padding:10px">
+          <span class="glyphicon glyphicon-ok"></span> Créer
+        </button>
+        <button style="flex:1;padding:10px;background:#E0E0E0;color:#333;border:none;border-radius:6px;font-weight:600;cursor:pointer" onclick="closeModal('hybridStepBuilderModal')">
+          Annuler
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ DOCUMENT EDIT MODAL ════════════════════════════════ -->
+<div id="documentEditModal" class="modal" style="display:none">
+  <div class="modal-content" style="max-width:400px">
+    <div class="modal-header">
+      <h3 class="modal-title">
+        <span class="glyphicon glyphicon-pencil"></span>
+        Modifier le Document
+      </h3>
+      <button class="modal-close" onclick="closeModal('documentEditModal')">&times;</button>
+    </div>
+    
+    <div class="modal-body">
+      <div style="margin-bottom:12px">
+        <label class="form-label">Nom du document</label>
+        <input type="text" id="editDocName" class="form-input">
+      </div>
+      
+      <div style="display:flex;gap:12px;margin-bottom:12px">
+        <div style="flex:1">
+          <label class="form-label">Statut</label>
+          <input type="text" id="editDocStatus" class="form-input">
+        </div>
+        <div style="flex:0 0 80px">
+          <label class="form-label">Couleur</label>
+          <input type="color" id="editDocColor" class="form-color-input">
+        </div>
+      </div>
+      
+      <div style="display:flex;gap:8px;margin-top:20px">
+        <button class="btn-primary" onclick="saveDocumentEdit()" style="flex:1;padding:10px">
+          <span class="glyphicon glyphicon-ok"></span> Enregistrer
+        </button>
+        <button style="flex:1;padding:10px;background:#E0E0E0;color:#333;border:none;border-radius:6px;font-weight:600;cursor:pointer" onclick="closeModal('documentEditModal')">
+          Annuler
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}

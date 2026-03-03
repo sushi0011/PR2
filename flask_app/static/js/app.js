@@ -10,6 +10,8 @@ let selectedPRId = null;
 let donutChart   = null;
 let processingLimits = {};
 let allDocuments  = [];
+let hybridSteps  = [];
+let editingDocId = null;
 
 /* ── INIT ───────────────────────────────────────────────────────────────────── */
 document.addEventListener("DOMContentLoaded", () => {
@@ -133,15 +135,19 @@ function renderDocumentsList() {
     <div class="document-item">
       <input type="checkbox" class="document-checkbox" 
              ${doc.done ? 'checked' : ''} 
-             onchange="toggleDocument('${doc.id}', this.checked)">
+             onchange="toggleDocument('${doc.id}', this.checked)" 
+             id="checkbox-${doc.id}">
       <div class="document-color-tag" style="background-color:${doc.color}"></div>
       <div class="document-info">
         <div class="document-name">${escapeHtml(doc.name)}</div>
         <span class="document-status" style="border-color:${doc.color};color:${doc.color}">${escapeHtml(doc.status)}</span>
       </div>
       <div class="document-actions">
-        <button class="btn-doc-delete" onclick="deleteDocument('${doc.id}')">
-          <span class="glyphicon glyphicon-trash"></span> Supprimer
+        <button class="btn-doc-edit" onclick="openDocumentEdit('${doc.id}')" title="Modifier">
+          <span class="glyphicon glyphicon-pencil"></span>
+        </button>
+        <button class="btn-doc-delete" onclick="deleteDocument('${doc.id}')" title="Supprimer">
+          <span class="glyphicon glyphicon-trash"></span>
         </button>
       </div>
     </div>
@@ -220,9 +226,136 @@ async function deleteDocument(docId) {
   });
 }
 
+function openDocumentEdit(docId) {
+  const doc = allDocuments.find(d => d.id === docId);
+  if (!doc) return;
+  
+  editingDocId = docId;
+  document.getElementById("editDocName").value = doc.name;
+  document.getElementById("editDocStatus").value = doc.status;
+  document.getElementById("editDocColor").value = doc.color;
+  
+  const modal = document.getElementById("documentEditModal");
+  if (modal) {
+    modal.style.display = "flex";
+  }
+}
+
+async function saveDocumentEdit() {
+  if (!editingDocId) return;
+  
+  const name = document.getElementById("editDocName").value.trim();
+  const status = document.getElementById("editDocStatus").value.trim();
+  const color = document.getElementById("editDocColor").value;
+  
+  if (!name) {
+    showToast("Veuillez entrer un nom de document", "error");
+    return;
+  }
+  
+  const doc = allDocuments.find(d => d.id === editingDocId);
+  if (!doc) return;
+  
+  const result = await api(`/api/documents/${editingDocId}`, "PUT", {
+    name: name,
+    status: status || "En attente",
+    color: color,
+    done: doc.done
+  });
+  
+  if (result.error) {
+    showToast("Erreur lors de la modification", "error");
+    return;
+  }
+  
+  doc.name = result.name;
+  doc.status = result.status;
+  doc.color = result.color;
+  
+  closeModal("documentEditModal");
+  renderDocumentsList();
+  showToast("Document modifié avec succès", "success");
+}
+
 function escapeHtml(text) {
   const map = {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'};
   return text.replace(/[&<>"']/g, m => map[m]);
+}
+
+/* ── HYBRID PR STEP BUILDER ─────────────────────────────────────────────────── */
+function addHybridStep() {
+  const stepId = Date.now();
+  hybridSteps.push({ id: stepId, title: "", description: "" });
+  renderHybridSteps();
+}
+
+function renderHybridSteps() {
+  const container = document.getElementById("hybridStepsContainer");
+  if (!container) return;
+  
+  if (hybridSteps.length === 0) {
+    container.innerHTML = '<div style="color:#999;text-align:center;padding:20px">Aucune étape ajoutée</div>';
+    return;
+  }
+  
+  container.innerHTML = hybridSteps.map((step, idx) => `
+    <div class="hybrid-step-item">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-weight:600;color:#2C3E50">Étape ${idx + 1}</span>
+        <button class="btn-step-remove" onclick="removeHybridStep(${step.id})" title="Supprimer">
+          <span class="glyphicon glyphicon-remove"></span>
+        </button>
+      </div>
+      <input type="text" class="form-input" placeholder="Titre de l'étape" 
+             value="${escapeHtml(step.title)}"
+             onchange="updateHybridStep(${step.id}, 'title', this.value)" 
+             style="margin-bottom:6px">
+      <textarea class="form-input" placeholder="Description (optionnel)" rows="2"
+                onchange="updateHybridStep(${step.id}, 'description', this.value)"
+                style="margin-bottom:12px">${escapeHtml(step.description)}</textarea>
+    </div>
+  `).join('');
+}
+
+function updateHybridStep(stepId, field, value) {
+  const step = hybridSteps.find(s => s.id === stepId);
+  if (step) {
+    step[field] = value;
+  }
+}
+
+function removeHybridStep(stepId) {
+  hybridSteps = hybridSteps.filter(s => s.id !== stepId);
+  renderHybridSteps();
+}
+
+async function saveHybridPR() {
+  const categoryName = document.getElementById("hybridCategoryName").value.trim();
+  
+  if (!categoryName) {
+    showToast("Veuillez entrer un nom de catégorie", "error");
+    return;
+  }
+  
+  if (hybridSteps.length === 0) {
+    showToast("Veuillez ajouter au moins une étape", "error");
+    return;
+  }
+  
+  // Check that all steps have a title
+  if (hybridSteps.some(s => !s.title.trim())) {
+    showToast("Chaque étape doit avoir un titre", "error");
+    return;
+  }
+  
+  // Close the modal
+  closeModal("hybridStepBuilderModal");
+  
+  // Store custom steps for later use when creating PR
+  window.hybridCustomSteps = hybridSteps;
+  window.hybridCustomCategoryName = categoryName;
+  
+  showToast("Étapes sauvegardées. Continuez la création du PR.", "success");
 }
 
 /* ── KPI PROCESSING DELAYS ──────────────────────────────────────────────────── */
@@ -838,7 +971,19 @@ function bindForm() {
     btn.addEventListener("click", () => {
       document.querySelectorAll(".cat-btn").forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
-      document.getElementById("prCategory").value = btn.dataset.cat;
+      const category = btn.dataset.cat;
+      document.getElementById("prCategory").value = category;
+      
+      // If Hybrid is selected, open the step builder
+      if (category === "Hybride") {
+        hybridSteps = [];
+        addHybridStep();
+        document.getElementById("hybridCategoryName").value = "Hybride";
+        const modal = document.getElementById("hybridStepBuilderModal");
+        if (modal) {
+          modal.style.display = "flex";
+        }
+      }
     });
   });
 
@@ -851,6 +996,16 @@ function bindForm() {
       category: document.getElementById("prCategory").value,
       prDate:   document.getElementById("prDate").value,
     };
+    
+    // Add custom steps if Hybrid
+    if (body.category === "Hybride") {
+      if (!window.hybridCustomSteps || window.hybridCustomSteps.length === 0) {
+        return showToast("Veuillez définir les étapes du PR Hybride", "error");
+      }
+      body.custom_category_name = window.hybridCustomCategoryName || "Hybride";
+      body.custom_steps = JSON.stringify(window.hybridCustomSteps);
+    }
+    
     if (!body.number || !body.title || !body.category || !body.prDate) {
       return showToast("Veuillez remplir tous les champs", "error");
     }
@@ -862,6 +1017,9 @@ function bindForm() {
     }
     if (res.error) return showToast(res.error, "error");
     showToast(editingId ? "PR mise à jour" : "PR créée avec succès", "success");
+    // Clear hybrid data
+    window.hybridCustomSteps = null;
+    window.hybridCustomCategoryName = null;
     resetForm();
     await loadPRList();
   });
