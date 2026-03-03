@@ -585,7 +585,7 @@ def update_hybrid_step(pr_id, step_id):
     
     # Update task
     conn.execute(
-        "UPDATE task SET title = ?, description = ? WHERE pr_id = ? AND task_id = ?",
+        "UPDATE task SET title = ?, desc = ? WHERE pr_id = ? AND task_id = ?",
         (title, desc, pr_id, step_id)
     )
     conn.commit()

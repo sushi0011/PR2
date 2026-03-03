@@ -656,16 +656,22 @@ html, body {
   background: none;
   border: none;
   cursor: pointer;
-  color: #2980B9;
-  font-size: 14px;
-  padding: 0 4px;
-  transition: color var(--transition);
+  color: #95A5A6;
+  font-size: 16px;
+  padding: 6px 8px;
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 4px;
+  opacity: 0.6;
 }
 .btn-step-edit:hover {
-  color: #1E5BA8;
+  color: white;
+  background: #3498DB;
+  transform: scale(1.15);
+  opacity: 1;
+  box-shadow: 0 2px 8px rgba(52, 152, 219, 0.4);
 }
 
 .task-body {
@@ -951,7 +957,7 @@ html, body {
 
 /* ═══════════════════════════════════════════════════════════════════════════
    ALERTS PANEL — detailed list below charts
-   ════════════════════════���══════════════════════════════════════════════════ */
+   ════════════════════════���════════════════════════════════════���═════════════ */
 .alerts-panel {
   background: var(--white);
   border-radius: 14px;
@@ -1282,7 +1288,7 @@ html, body {
 
 /* ═══════════════════════════════════════════════════════════════════════════
    HYBRID PR STEP BUILDER
-   ═══════════════════════════════════════════════════════════════════════════ */
+   ═══════════════════════════════════��═══════════════════════════════════════ */
 .hybrid-steps-container {
   display: flex;
   flex-direction: column;

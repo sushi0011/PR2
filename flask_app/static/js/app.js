@@ -286,26 +286,23 @@ function escapeHtml(text) {
 let editingHybridPRId = null;
 let editingStepId = null;
 
-function openStepEdit(prId, stepId) {
+function openStepEdit(event, prId, stepId) {
+  event.stopPropagation();
+  
   editingHybridPRId = prId;
   editingStepId = stepId;
   
   const pr = allPRs.find(p => p.id === prId);
-  if (!pr) return;
-  
-  const tasks = Object.values(pr.tasks || {});
-  const task = tasks.find(t => Object.values(pr.tasks || {}).indexOf(t) === parseInt(stepId) - 1);
-  
-  // Find task by getting from API or allPRs
-  let stepData = null;
-  for (const tid in (pr.tasks || {})) {
-    if (tid === stepId) {
-      stepData = pr.tasks[tid];
-      break;
-    }
+  if (!pr || !pr.tasks) {
+    showToast("Erreur: PR ou tâches non trouvées", "error");
+    return;
   }
   
-  if (!stepData) return;
+  const stepData = pr.tasks[stepId];
+  if (!stepData) {
+    showToast("Erreur: Étape non trouvée", "error");
+    return;
+  }
   
   document.getElementById("editStepTitle").value = stepData.title || "";
   document.getElementById("editStepDesc").value = stepData.desc || "";
@@ -879,17 +876,17 @@ function renderChecklist(prId, tasks, progress) {
   container.innerHTML = Object.entries(tasks).map(([tid, task]) => {
     const done  = task.done;
     const delay = task.delay || "";
-    const editBtn = isHybride ? `<button class="btn-step-edit" onclick="openStepEdit('${prId}','${tid}')" title="Modifier"><span class="glyphicon glyphicon-pencil"></span></button>` : '';
+    const editBtn = isHybride ? `<button class="btn-step-edit" onclick="openStepEdit(event,'${prId}','${tid}')" title="Modifier" style="display:none"><span class="glyphicon glyphicon-pencil"></span></button>` : '';
     return `
     <div class="task-item ${done ? "task-done" : ""} ${delay ? "task-delay-" + delay : ""}" id="taskItem-${tid}">
-      <div class="task-header" onclick="toggleTaskBody('${tid}')">
+      <div class="task-header" onclick="toggleTaskBody('${tid}')" onmouseover="document.querySelector('#stepEditBtn-${tid}').style.display='flex'" onmouseout="document.querySelector('#stepEditBtn-${tid}').style.display='none'">
         <div class="task-num">${tid}</div>
         <div class="task-checkbox ${done ? "checked" : ""}" onclick="toggleTask(event,'${prId}','${tid}')"></div>
         <div class="task-info">
           <div class="task-title">${escHtml(task.title)} ${delayIcon(delay)}</div>
           <div class="task-desc">${escHtml(task.desc)}</div>
         </div>
-        ${editBtn}
+        <button id="stepEditBtn-${tid}" class="btn-step-edit" onclick="openStepEdit(event,'${prId}','${tid}')" title="Modifier"><span class="glyphicon glyphicon-pencil"></span></button>
         <button class="task-toggle-btn" id="toggleBtn-${tid}">
           <span class="glyphicon glyphicon-chevron-down"></span>
         </button>
